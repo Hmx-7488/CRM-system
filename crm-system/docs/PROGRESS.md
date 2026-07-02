@@ -1,7 +1,7 @@
 ﻿# CRM 系统开发进度总览
 
-> 最后更新: 2026-07-01 15:30  
-> 项目路径: `D:\develop\job\telegram-bot\crm-system`  
+> 最后更新: 2026-07-01 17:00
+> 项目路径: `D:\develop\job\telegram-bot\crm-system`
 > 相关模块: `D:\develop\job\telegram-bot\telegram-bot-demo` (消息拉取)
 
 ---
@@ -14,8 +14,10 @@
 | Phase 2: 需求分析与架构设计 | ✅ 完成 | 2026-07-01 上午 |
 | Phase 3: CRM 系统全栈搭建 | ✅ 完成 | 2026-07-01 中午 |
 | Phase 4: Bug 修复 (字段显示 + 登录跳转 + 部署架构) | ✅ 完成 | 2026-07-01 15:10 |
-| Phase 5: 剩余 401 问题 | 🔴 待修复 | — |
-| Phase 6: 智能提取/分配业务逻辑 | ⬜ 未开始 | — |
+| Phase 5: Sprint 0 验收 | ✅ 完成 | 2026-07-01 15:50 |
+| Phase 6: Sprint 1 消息入库 | ✅ 完成 | 2026-07-01 16:00 |
+| Phase 7: Sprint 2 智能提取/分配 | ✅ 完成 | 2026-07-01 16:55 |
+| Phase 8: Sprint 3 自动分配引擎 | ✅ 完成 | 2026-07-01 17:00 |
 
 ---
 
@@ -131,7 +133,12 @@
 - `POST /api/orders/{id}/status` — 状态变更
 - `GET /api/dashboard/summary` — 仪表盘统计
 - `GET/POST /api/rules/extract` — 提取规则
+- `PUT /api/rules/extract/{id}` — 更新提取规则
 - `GET/POST /api/rules/assign` — 分配规则
+- `PUT /api/rules/assign/{id}` — 更新分配规则
+- `POST /api/messages/import` — 消息导入
+- `POST /api/messages/{id}/extract` — 单条消息提取
+- `POST /api/messages/batch-extract` — 批量消息提取
 
 ### 3.2 前端 (Vue 3 + Element Plus)
 
@@ -141,8 +148,8 @@
 - `App.vue` — 根组件
 - `router/index.js` — 路由配置 + 守卫 (角色权限检查)
 - `store/auth.js` — Pinia 认证状态 (token持久化到localStorage)
-- `api/` — Axios 封装 (index.js实例+拦截器; auth/users/orders/products/regions/messages/dashboard各模块)
-- `views/` — 页面组件: Login, Dashboard, OrderList, OrderDetail, OrderReview, ProductList, MessageList, UserList, RegionList
+- `api/` — Axios 封装 (index.js实例+拦截器; auth/users/orders/products/regions/messages/dashboard/rules各模块)
+- `views/` — 页面组件: Login, Dashboard, OrderList, OrderDetail, OrderReview, ProductList, MessageList, UserList, RegionList, RulesConfig
 - `components/AppLayout.vue` — 主布局 (侧边栏 + 顶栏 + 角色菜单过滤)
 
 ### 3.3 种子数据
@@ -243,49 +250,213 @@
 
 ---
 
-## Phase 5: 剩余问题 🔴
+## Phase 5: Sprint 0 验收 ✅
 
-### 当前报错
+### 401 问题 — 已解决
 
-登录后跳转到消息管理页面时，Console 报错：
+**根因**：
+1. Vite HMR 模块热替换时 axios 实例被重建，`baseURL` 上下文丢失
+2. API 端点缺少尾部斜杠，FastAPI 307 重定向丢失 Authorization header
+
+**解决方案**：前端 build 产物由 FastAPI 统一提供，所有 API 端点加尾部斜杠。
+
+### 端到端业务流程 — 全链路跑通
 
 ```
-GET http://localhost:8080/api/messages/?page=1&size=20 401 (Unauthorized)
+admin 创建订单 → pending_review
+  ↓
+reviewer 审核通过 → assigned
+  ↓
+admin 分配给 agent1 → assigned (assigned_to=3)
+  ↓
+agent1 开始处理 → processing
+  ↓
+agent1 完成订单 → completed
 ```
 
-**可能原因**：
-- Token 在 localStorage 中存在但已过期
-- Pinia store 初始化时 token 恢复逻辑存在竞态条件
-- SPAMiddleware 与 StaticFiles 的 middleware 注册顺序导致某些请求路由异常
-- 前端 dist 构建产物可能未包含最新的请求拦截器代码
+操作日志完整记录 4 条状态变更。
 
-**状态**：已写出排查提示词 → DEBUG_PROMPT.md，交给 Claude 排查。**尚未解决**。
+### 页面字段完整性 — 无空白字段
+
+| 页面 | 关键字段 | 状态 |
+|------|----------|------|
+| 订单列表 | product_name, region_name, assigned_user, reviewer_user | ✅ |
+| 用户列表 | region_name, status(整数 1/0) | ✅ |
+| 产品列表 | name, spec, category, unit_price, status | ✅ |
+| 区域列表 | name, code | ✅ |
+| 仪表盘 | total_orders, pending_review, processing, completed_today, region_stats | ✅ |
+
+### 角色权限隔离 — 正常
+
+| 能力 | admin | reviewer | agent |
+|------|-------|----------|-------|
+| 用户管理 | ✅ | 403 | 403 |
+| 区域管理 | ✅ | ✅ | ✅ |
+| 订单列表 | ✅ 全部 | ✅ 全部 | ✅ 仅自己的 |
+| 产品列表 | ✅ | ✅ | ✅ |
+| 消息列表 | ✅ | ✅ | ✅ |
+| 仪表盘 | ✅ | ✅ | ✅ |
+| 创建订单 | ✅ | ✅ | 403 |
+| 审核订单 | 403 | ✅ | 403 |
+| 分配订单 | ✅ | ✅ | 403 |
+
+### 修复的额外问题
+
+- `backend/app/api/orders.py` 分配接口：允许 `assigned` 状态下重新分配（之前只允许 `pending_review`，导致审核通过后无法分配）
 
 ---
 
-## Phase 6: 后续规划
+## Phase 6: Sprint 1 消息入库 ✅
+
+**目标**：实现 JSONL 文件上传 → 解析 → 去重 → 入库的完整链路。
+
+### 新建文件
+
+| 文件 | 说明 |
+|------|------|
+| `backend/app/services/import_service.py` | JSONL 解析 + 格式自动检测 + 字段映射 + 去重 + 批量入库 |
+
+### 修改文件
+
+| 文件 | 修改内容 |
+|------|----------|
+| `backend/app/api/messages.py` | 新增 `POST /api/messages/import` 端点 |
+| `frontend/src/api/messages.js` | 新增 `importMessages()` 函数 |
+| `frontend/src/views/MessageList.vue` | 新增"导入消息"按钮 + 对话框 + 文件选择 + 导入逻辑 |
+
+### 支持的 JSONL 格式
+
+| 格式 | 来源 | 检测条件 |
+|------|------|----------|
+| 格式 A | dump_messages.py (Telethon 历史) | JSON 有 `sender` 字段 |
+| 格式 B | live_capture.py (Bot API 实时) | JSON 有 `from_user` 字段 |
+
+### 验证结果
+
+```
+导入测试：imported=3, skipped=0, errors=0
+  - 格式 A × 2：sender_name 正确解析，group_name 回退为 chat_{chat_id}
+  - 格式 B × 1：sender_name 正确解析，group_name 取 chat_title
+
+去重测试：imported=0, skipped=3, errors=0（重复导入全部跳过）
+
+消息列表：3 条消息正确显示
+```
+
+---
+
+## Phase 7: Sprint 2 提取引擎 + 规则配置 ✅
+
+**目标**：搭建提取引擎框架，实现关键词/正则/发送者/群组四种规则匹配，创建规则配置前端页面。
+
+### 新建文件
+
+| 文件 | 说明 |
+|------|------|
+| `backend/app/services/extract_service.py` | 提取引擎：规则加载 → 匹配 → 字段提取，含种子规则自动创建 |
+| `frontend/src/api/rules.js` | 规则 API 封装 (提取规则 + 分配规则 CRUD) |
+| `frontend/src/views/RulesConfig.vue` | 规则配置页面：双 Tab (提取/分配)，新增/编辑/启禁用 |
+
+### 修改文件
+
+| 文件 | 修改内容 |
+|------|----------|
+| `backend/app/api/messages.py` | 替换 extract 占位符为真实提取逻辑 + 新增 `POST /api/messages/batch-extract` |
+| `backend/app/api/rules.py` | 规则列表 API 移除 status 过滤（支持显示禁用规则） |
+| `frontend/src/router/index.js` | 新增 `/rules` 路由 (admin only) |
+| `frontend/src/components/AppLayout.vue` | 新增"规则配置"菜单项 + Setting 图标 |
+| `frontend/src/api/messages.js` | 新增 `batchExtract()` 函数 |
+| `frontend/src/views/MessageList.vue` | 新增"批量提取"按钮 + 确认对话框 |
+
+### 提取引擎规则类型
+
+| 类型 | 匹配逻辑 | field_mapping |
+|------|----------|---------------|
+| `keyword` | `any(kw in text for kw in keywords)` | 无（仅触发） |
+| `regex` | `re.search(pattern, text)` | 按捕获组索引提取字段 |
+| `sender` | `sender_id in sender_ids` | 无（仅触发） |
+| `group` | `group_id in group_ids` | 无（仅触发） |
+
+### 验证结果
+
+```
+单条提取测试：
+  消息 "我要下单买苹果" → 匹配关键词规则 → 创建 order_id=4 ✅
+
+批量提取测试：
+  31 条未处理消息 → 0 条匹配（无触发词）→ 正确跳过 ✅
+
+规则 API：
+  GET /api/rules/extract → 返回 1 条关键词规则 ✅
+  GET /api/rules/assign  → 返回 1 条区域分配规则 ✅
+
+前端构建：RulesConfig-499df9fb.js 生成 ✅
+```
+
+---
+
+## Phase 8: Sprint 3 自动分配引擎 ✅
+
+**目标**：审核通过订单时按分配规则自动分配给区域操作员。
+
+### 新建文件
+
+| 文件 | 说明 |
+|------|------|
+| `backend/app/services/assign_service.py` | 分配引擎：区域分配 + 负载均衡，含种子规则自动创建 |
+
+### 修改文件
+
+| 文件 | 修改内容 |
+|------|----------|
+| `backend/app/api/orders.py` | 审核端点集成 auto_assign：approve 后自动分配 + remark 记录 |
+
+### 分配策略
+
+| 策略 | rule_type | 匹配逻辑 |
+|------|-----------|----------|
+| 按区域分配 | `region` | region_id 匹配 → 分配给 agent_ids 中第一个可用 agent；agent_ids 为空时走负载均衡 |
+| 区域负载均衡 | `load_balance` | region_id 匹配 → 查询该区域所有 agent → 分配给订单数最少的 |
+
+### 验证结果
+
+```
+端到端测试 (order #7):
+  admin 创建华东订单 → pending_review ✅
+  reviewer 审核通过 → assigned, assigned_to=3 (agent1) ✅
+  日志记录: "审核通过，自动分配给用户 #3" ✅
+  agent1 登录 → 订单列表可见该订单 ✅
+
+无规则测试 (order #8):
+  禁用所有规则 → 审核通过 → assigned, assigned_to=None ✅ (不崩溃)
+  日志记录: "审核通过，无匹配分配规则，等待手动分配" ✅
+```
+
+---
+
+## Phase 9: 后续规划
 
 > 详细开发计划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)
 
-### Sprint 0-3 概述
+### Sprint 完成状态
 
-| Sprint | 目标 | 依赖 |
+| Sprint | 目标 | 状态 |
 |--------|------|------|
-| Sprint 0 | 修复 401 + 全链路验证 | 无 |
-| Sprint 1 | 消息入库 (JSONL → raw_messages) | Sprint 0 |
-| Sprint 2 | 订单自动提取 + 产品自动识别 + 规则配置页面 | Sprint 1 |
-| Sprint 3 | 自动分配引擎 | Sprint 2 |
-| Sprint 4+ | v0.2 (日报/Excel/Bot/主系统对接) | Sprint 3 | ⬜
+| Sprint 0 | 修复 401 + 全链路验证 | ✅ |
+| Sprint 1 | 消息入库 (JSONL → raw_messages) | ✅ |
+| Sprint 2 | 订单自动提取 + 规则配置页面 | ✅ |
+| Sprint 3 | 自动分配引擎 | ✅ |
+| Sprint 4+ | v0.2 (日报/Excel/Bot/主系统对接) | ⬜ |
 
-### 6.1 待开发功能 (v0.1 剩余)
+### 9.1 待开发功能 (v0.1 剩余)
 
-- [ ] 消息导入接口 (`POST /api/messages/import`)
-- [ ] 订单自动提取逻辑 (调用提取规则匹配 raw_messages → 生成订单)
+- [x] 消息导入接口 (`POST /api/messages/import`) — Sprint 1
+- [x] 订单自动提取逻辑 (提取规则匹配 → 生成订单) — Sprint 2
+- [x] 自动分配引擎 (审核通过 → 按规则分配 agent) — Sprint 3
 - [ ] 产品自动识别逻辑 (从消息中提取产品名称/规格/单价)
-- [ ] 分配规则引擎 (v0.1 为手动分配，后续扩展自动分配)
 - [ ] 订单日志完整记录 (order_logs 表已建，需确保所有状态变更都写入)
 
-### 6.2 v0.2 规划
+### 9.2 v0.2 规划
 
 - [ ] 订单日报管理 (每日汇总统计)
 - [ ] 订单信息管理 (批量编辑、Excel 导入导出)
@@ -304,6 +475,9 @@ GET http://localhost:8080/api/messages/?page=1&size=20 401 (Unauthorized)
 | Claude 开发提示词 | [CLAUDE_PROMPT.md](CLAUDE_PROMPT.md) | 给 Claude 的全栈搭建指令 |
 | Bug 修复提示词 | [BUGFIX_PROMPT.md](BUGFIX_PROMPT.md) | 字段显示问题修复指令 |
 | 调试提示词 | [DEBUG_PROMPT.md](DEBUG_PROMPT.md) | 401 登录跳转问题排查指令 |
+| 验收流程 | [VERIFICATION.md](VERIFICATION.md) | Sprint 1+2 完整验收清单 |
+| API 验证手册 | [API_VERIFICATION_GUIDE.md](API_VERIFICATION_GUIDE.md) | 后端 API 验证详细步骤（0 基础可操作） |
+| Sprint 3 提示词 | [SPRINT3_PROMPT.md](SPRINT3_PROMPT.md) | 自动分配引擎开发指令 |
 | 团队角色配置 | [team/](team/) | TEAM_LEAD.md / BACKEND_AGENT.md / FRONTEND_AGENT.md |
 
 ---

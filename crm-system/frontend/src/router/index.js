@@ -56,6 +56,12 @@ const routes = [
         meta: { roles: ['admin'] }
       },
       {
+        path: 'rules',
+        name: 'RulesConfig',
+        component: () => import('../views/RulesConfig.vue'),
+        meta: { roles: ['admin'] }
+      },
+      {
         path: 'regions',
         name: 'RegionList',
         component: () => import('../views/RegionList.vue'),

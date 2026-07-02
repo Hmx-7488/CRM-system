@@ -44,7 +44,7 @@ async def list_extract_rules(
     current_user: any = Depends(require_role("admin"))
 ):
     """获取提取规则列表"""
-    rules = db.query(ExtractRule).filter(ExtractRule.status == 1).order_by(ExtractRule.priority.desc()).all()
+    rules = db.query(ExtractRule).order_by(ExtractRule.priority.desc()).all()
     
     rule_list = []
     for rule in rules:
@@ -145,7 +145,7 @@ async def list_assign_rules(
     current_user: any = Depends(require_role("admin"))
 ):
     """获取分配规则列表"""
-    rules = db.query(AssignRule).filter(AssignRule.status == 1).order_by(AssignRule.priority.desc()).all()
+    rules = db.query(AssignRule).order_by(AssignRule.priority.desc()).all()
     
     rule_list = []
     for rule in rules:

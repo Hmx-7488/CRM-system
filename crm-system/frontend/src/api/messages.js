@@ -11,3 +11,11 @@ export function getMessage(messageId) {
 export function markExtracted(messageId) {
   return api.post(`/api/messages/${messageId}/extract`)
 }
+
+export function importMessages(content, source = 'history') {
+  return api.post('/api/messages/import', { content, source })
+}
+
+export function batchExtract() {
+  return api.post('/api/messages/batch-extract')
+}

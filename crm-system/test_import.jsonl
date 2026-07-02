@@ -1,0 +1,3 @@
+{"id":1,"date":"2026-07-01T10:00:00+00:00","text":"老板，来两箱苹果","sender":{"id":100,"first_name":"张三","last_name":null,"username":"zhangsan"},"chat_id":-100111}
+{"id":2,"date":"2026-07-01T10:01:00+00:00","text":"橘子多少钱一斤","sender":{"id":200,"first_name":"李四","last_name":null},"chat_id":-100111}
+{"message_id":3,"date":"2026-07-01T10:02:00+00:00","text":"今天有什么新鲜货","from_user":{"id":300,"first_name":"王五","last_name":null,"is_bot":false},"chat_id":-100111,"chat_title":"测试群"}

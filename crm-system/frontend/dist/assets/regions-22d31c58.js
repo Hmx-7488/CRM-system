@@ -1,1 +1,0 @@
-import{D as n}from"./index-1dc297fc.js";function o(e){return n.get("/api/regions/",{params:e})}function r(e){return n.post("/api/regions/",e)}function a(e,i){return n.put(`/api/regions/${e}`,i)}function g(e){return n.delete(`/api/regions/${e}`)}export{r as c,g as d,o as g,a as u};

@@ -6,6 +6,7 @@ from ..database import get_db
 from ..models.order import Order, OrderLog
 from ..models.user import User
 from ..utils.deps import require_role, get_current_user
+from ..services.assign_service import auto_assign
 
 router = APIRouter()
 
@@ -372,6 +373,16 @@ async def review_order(
         # 审核通过：状态改为 assigned
         new_status = "assigned"
         order.reviewer_id = current_user.id
+        db.flush()
+
+        # 自动分配（不覆盖已手动预分配的）
+        if not order.assigned_to:
+            assigned_to = auto_assign(db, order)
+            if assigned_to:
+                order.assigned_to = assigned_to
+            remark = f"审核通过，自动分配给用户 #{assigned_to}" if assigned_to else "审核通过，无匹配分配规则，等待手动分配"
+        else:
+            remark = "审核通过"
     elif review_data.action == "reject":
         # 审核驳回：状态改为 rejected
         new_status = "rejected"
@@ -389,7 +400,7 @@ async def review_order(
         operator_id=current_user.id,
         from_status=order.status,
         to_status=new_status,
-        remark=f"审核操作: {review_data.action}"
+        remark=remark if review_data.action == "approve" else f"审核驳回: {review_data.reason or ''}"
     )
     db.add(log)
     
@@ -425,13 +436,13 @@ async def assign_order(
             detail="订单不存在"
         )
     
-    # 检查订单状态
-    if order.status != "pending_review":
+    # 检查订单状态（允许 pending_review 或 assigned 状态下分配）
+    if order.status not in ("pending_review", "assigned"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="订单状态不是待审核"
+            detail="订单状态不允许分配"
         )
-    
+
     # 检查分配用户是否存在且为 agent 角色
     assigned_user = db.query(User).filter(User.id == assign_data.assigned_to).first()
     if not assigned_user:

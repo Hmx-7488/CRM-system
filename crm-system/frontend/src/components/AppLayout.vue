@@ -42,7 +42,12 @@
           <el-icon><User /></el-icon>
           <template #title>用户管理</template>
         </el-menu-item>
-        
+
+        <el-menu-item v-if="isAdmin" index="/rules">
+          <el-icon><Setting /></el-icon>
+          <template #title>规则配置</template>
+        </el-menu-item>
+
         <el-menu-item v-if="isAdmin" index="/regions">
           <el-icon><Location /></el-icon>
           <template #title>区域管理</template>
@@ -90,7 +95,7 @@ import { useAuthStore } from '../store/auth'
 import { ElMessageBox } from 'element-plus'
 import {
   DataBoard, List, Checked, Goods, ChatDotSquare,
-  User, Location, Fold, Expand
+  User, Location, Fold, Expand, Setting
 } from '@element-plus/icons-vue'
 
 const route = useRoute()

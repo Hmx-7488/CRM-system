@@ -16,6 +16,8 @@
               <el-option label="未处理" value="0" />
             </el-select>
             <el-button type="primary" @click="fetchMessages">刷新</el-button>
+            <el-button type="success" @click="showImportDialog = true">导入消息</el-button>
+            <el-button type="warning" @click="handleBatchExtract" :loading="batchExtracting">批量提取</el-button>
           </div>
         </div>
       </template>
@@ -74,17 +76,64 @@
         />
       </div>
     </el-card>
+
+    <!-- 导入对话框 -->
+    <el-dialog v-model="showImportDialog" title="导入消息" width="500px">
+      <el-form>
+        <el-form-item label="消息来源">
+          <el-radio-group v-model="importSource">
+            <el-radio value="history">历史消息 (dump)</el-radio>
+            <el-radio value="live">实时捕获 (live)</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="选择文件">
+          <input
+            type="file"
+            accept=".jsonl,.json"
+            @change="handleFileSelect"
+            ref="fileInput"
+          />
+        </el-form-item>
+      </el-form>
+      <div v-if="importResult" style="margin-top: 12px;">
+        <el-alert
+          :title="`导入 ${importResult.imported} 条，跳过 ${importResult.skipped} 条${importResult.errors ? '，失败 ' + importResult.errors + ' 条' : ''}`"
+          :type="importResult.errors > 0 ? 'warning' : 'success'"
+          :closable="false"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="showImportDialog = false">取消</el-button>
+        <el-button
+          type="primary"
+          @click="handleImport"
+          :disabled="!selectedFile"
+          :loading="importing"
+        >
+          开始导入
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { getMessages, markExtracted } from '../api/messages'
-import { ElMessage } from 'element-plus'
+import { getMessages, markExtracted, importMessages, batchExtract } from '../api/messages'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const messageList = ref([])
 const loading = ref(false)
 const filterProcessed = ref('')
+
+// 导入相关
+const showImportDialog = ref(false)
+const importSource = ref('history')
+const selectedFile = ref(null)
+const importing = ref(false)
+const importResult = ref(null)
+const fileInput = ref(null)
+const batchExtracting = ref(false)
 
 const pagination = reactive({
   page: 1,
@@ -149,6 +198,43 @@ const handleExtract = async (row) => {
   } catch (error) {
     // 错误已在拦截器中处理
   }
+}
+
+const handleFileSelect = (event) => {
+  selectedFile.value = event.target.files[0]
+  importResult.value = null
+}
+
+const handleImport = async () => {
+  if (!selectedFile.value) return
+
+  importing.value = true
+  try {
+    const content = await selectedFile.value.text()
+    const res = await importMessages(content, importSource.value)
+    importResult.value = res.data
+    ElMessage.success(`导入完成：${res.data.imported} 条`)
+    // 刷新消息列表
+    fetchMessages()
+  } catch (error) {
+    // 错误已在拦截器中处理
+  } finally {
+    importing.value = false
+  }
+}
+
+const handleBatchExtract = async () => {
+  try {
+    await ElMessageBox.confirm('将对所有未处理消息执行提取，确定继续？', '确认批量提取')
+  } catch { return }
+
+  batchExtracting.value = true
+  try {
+    const res = await batchExtract()
+    ElMessage.success(`处理 ${res.data.total} 条，生成 ${res.data.created_orders} 个订单`)
+    fetchMessages()
+  } catch { /* 拦截器已处理 */ }
+  finally { batchExtracting.value = false }
 }
 
 onMounted(() => {

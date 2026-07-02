@@ -1,1 +1,0 @@
-import{D as r}from"./index-1dc297fc.js";function a(e){return r.get("/api/users/",{params:e})}function u(e){return r.post("/api/users/",e)}function n(e,s){return r.put(`/api/users/${e}`,s)}function i(e){return r.delete(`/api/users/${e}`)}function p(){return r.get("/api/users/",{params:{role:"agent"}})}export{a,u as c,i as d,p as g,n as u};
