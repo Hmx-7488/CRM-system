@@ -171,6 +171,7 @@
 | chat_title | VARCHAR(256) | |
 | chat_type | VARCHAR(32) | group / supergroup / channel |
 | member_count | INT DEFAULT 0 | |
+| is_active | BOOLEAN DEFAULT true | 该群是否启用 Bot 服务（Bot需求文档 §4.3） |
 | tags | VARCHAR(256) | 自定义标签分组 |
 | bot_permissions | JSONB | {can_read,can_send,can_delete,can_ban,can_pin,can_invite} 6个boolean |
 | auto_reply | JSONB | {enabled, welcome_message, farewell_message, keywords[{trigger,reply}]} |
@@ -178,7 +179,6 @@
 | description | TEXT | |
 | created_at | TIMESTAMP | |
 | updated_at | TIMESTAMP | |
-
 ### 5.4 Bot 系统 — forward_rules 表（含 format/edits/deletes，Bot需求文档 §5.3）
 
 | 字段 | 类型 | 说明 |
