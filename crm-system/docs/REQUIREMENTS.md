@@ -29,13 +29,6 @@
 │   │   options: edits/deletes/限速/去重│     │ [审核] 客服审核 → 通过/驳回          │
 │   └─→ ES 全文搜索索引                │      │   ↓                               │
 │                                      │      │ [派单] assign_rules(6权重+3版本)   │
-│   │                                  │      │ score = w_region×40 + w_d7×d7       │
-│   ├─→ [转发引擎] → Redis Streams     │      │  + w_d14×d14 + w_d30×d30            │
-│   │   5场景: 群→群/群→Bot/Bot→群/    │      │  - pFR×filter - pOR×overtime        │
-│   │   群→Webhook/关键词路由           │      │ 动态黑名单自动排除                  │
-│   │   format: origin/template/stripped│     │   ↓                               │
-│   │   options: edits/deletes/限速/去重│     │ [执行] 组长接单→分配投手→投放中     │
-│   └─→ ES 全文搜索索引                │      │ SLA六物料追踪→完成/暂停/终止        │
 │                                      │      │ 佣金率: n+m/n+m返k/纯数字x          │
 │ [消息模板] 欢迎语/关键词回复/定时群发  │      │ 预警分钟: getAlertMinutesForOrder   │
 │   定时模式: 一次性/每天/每周/Cron     │      │   6市场(JP/US/BR/EU/SEA/IN)         │
@@ -552,9 +545,10 @@ in_progress
 | 待接单池 | /pool | 催促/AI呼叫/转单 | 客服 |
 | 客户管理 | /customers | NLP 自动创建 + 关联订单 | 客服 |
 | 集团管理 | /group_mgmt | 客户集团归属 | 客服 |
-| NLP 字段管理 | /cs/nlp | CRM 本地管理 17 NLP 字段（只读+调优） | 客服 |
-| Bot 管理 | /cs/bots | 查看 Bot/群聊状态 | 客服 |
+| NLP 字段管理 | /cs/nlp | 新增/编辑字段名+类型/启用禁用/删除 | 客服 |
+| Bot 管理 | /cs/bots | 新增/编辑/删除 Bot | 客服 |
 | 组长接单台 | /leader/orders | 接单 + 拆分 + 多投手 | 组长 |
+| 本组订单 | /leader/orders/all | 本组所有已分配订单（状态/投手/消耗进度/再分配/暂停） | 组长 |
 | 投手管理 | /leader/pitchers | 投手配置 | 组长 |
 | 规则中心 | /admin/rules | 派单规则(6权重+3版本+黑名单) | 管理员 |
 | NLP 字段管理 | /admin/nlp | CRM 本地管理 17 NLP 字段 | 管理员 / 客服 |
