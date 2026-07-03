@@ -29,6 +29,13 @@
 │   │   options: edits/deletes/限速/去重│     │ [审核] 客服审核 → 通过/驳回          │
 │   └─→ ES 全文搜索索引                │      │   ↓                               │
 │                                      │      │ [派单] assign_rules(6权重+3版本)   │
+│                                      │      │ score = w_region×40 + w_d7×d7       │
+│                                      │      │  + w_d14×d14 + w_d30×d30            │
+│                                      │      │  - pFR×filter - pOR×overtime        │
+│                                      │      │ 动态黑名单自动排除                  │
+│                                      │      │   ↓                               │
+│                                      │      │ [执行] 组长接单→分配投手→投放中     │
+│                                      │      │ SLA六物料追踪→完成/暂停/终止        │
 │                                      │      │ 佣金率: n+m/n+m返k/纯数字x          │
 │ [消息模板] 欢迎语/关键词回复/定时群发  │      │ 预警分钟: getAlertMinutesForOrder   │
 │   定时模式: 一次性/每天/每周/Cron     │      │   6市场(JP/US/BR/EU/SEA/IN)         │
@@ -159,6 +166,7 @@
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | id | SERIAL PK | |
+| bot_id | INT | 所属 Bot ID（Bot需求文档 §4.3） |
 | chat_id | BIGINT | |
 | chat_title | VARCHAR(256) | |
 | chat_type | VARCHAR(32) | group / supergroup / channel |
@@ -556,6 +564,7 @@ in_progress
 | SLA 大盘 | /admin/sla | 六物料超时监控 | 管理员 |
 | 预警配置 | /admin/alerts | 上班/下班/6市场预警分钟 | 管理员 |
 | 业务字典 | /admin/dict | 集团/渠道/时区等枚举值 | 管理员 |
+| 地区优先级面板 | /admin/region-priority | 6行PUSH报表数据/Rank前三高亮/地区筛选 | 管理员 |
 | 审计日志 | /admin/audit-log | 关键操作审计 | 管理员 |
 
 ---
